@@ -13,27 +13,52 @@ type OrderStatus = 'draft' | 'active' | 'completed' | 'canceled';
 
 type OrderFulfillment = 'dine_in' | 'takeaway';
 
+type OrderProductSummary = {
+  _id: string;
+  id: string;
+  categoryId: string;
+  categoryName: string;
+  categories?: string[];
+  name: string;
+  description?: string | null;
+  kind: string;
+  priceCents?: number;
+  price?: number;
+  taxRateBps?: number | null;
+  tva?: number | null;
+  image?: string | null;
+};
+
 type OrderLine = {
+  _id?: string;
   id: string;
   quantity: number;
   unitPriceCents: number;
+  unitPrice?: number;
   lineTotalCents: number;
+  lineTotal?: number;
   taxCents: number;
+  tax?: number;
   note: string | null;
   modifiersSnapshot: unknown;
   compositionSnapshot: unknown;
-  product: { id: string; name: string };
+  product: OrderProductSummary;
 };
 
 type OrderListItem = {
+  _id?: string;
   id: string;
   status: OrderStatus;
   fulfillment: OrderFulfillment;
   subtotalCents: number;
+  subtotal?: number;
   taxCents: number;
+  tax?: number;
   totalCents: number;
+  total?: number;
   createdAt: string;
   table: {
+    _id?: string;
     id: string;
     name: string;
     tableNumber: number;
@@ -44,7 +69,13 @@ type OrderListItem = {
 };
 
 type OrderDetail = OrderListItem & {
-  staff: { id: string; fullName: string; email: string } | null;
+  staff: {
+    _id?: string;
+    id: string;
+    fullName: string;
+    email: string;
+    role?: string;
+  } | null;
 };
 
 function formatMoney(cents: number) {
@@ -284,11 +315,18 @@ export function OrdersPage() {
               {detail.lines.map((line) => {
                 const mods = formatModifiers(line.modifiersSnapshot);
                 const comp = formatComposition(line.compositionSnapshot);
+                const meta = [
+                  line.product.categoryName,
+                  line.product.kind === 'composed' ? 'Composed' : null,
+                ].filter(Boolean);
                 return (
                   <li key={line.id} className="border-b border-zinc-100 pb-3 last:border-0 last:pb-0">
                     <div className="font-medium text-zinc-900">
                       {line.quantity}× {line.product.name}
                     </div>
+                    {meta.length > 0 ? (
+                      <div className="mt-0.5 text-xs text-zinc-500">{meta.join(' · ')}</div>
+                    ) : null}
                     <div className="mt-0.5 text-xs text-zinc-500">
                       {formatMoney(line.unitPriceCents)} unit · {formatMoney(line.lineTotalCents)} line · tax{' '}
                       {formatMoney(line.taxCents)}

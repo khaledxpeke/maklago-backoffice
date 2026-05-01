@@ -4,6 +4,13 @@ import { ApiError } from '@/shared/api/errors';
 import { Button } from '@/shared/ui/Button';
 import { Label } from '@/shared/ui/Label';
 
+/** Paths stored as `uploads/…`; browsers need `/uploads/…` for same-origin / Vite proxy. */
+function imageSrcForDisplay(raw: string | null): string | null {
+  if (!raw) return null;
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  return raw.startsWith('/') ? raw : `/${raw}`;
+}
+
 export function ImagePicker({
   label,
   value,
@@ -23,7 +30,7 @@ export function ImagePicker({
       <Label>{label}</Label>
       {value ? (
         <div className="mt-1 flex items-center gap-3">
-          <img src={value} alt="" className="h-20 w-20 rounded-lg object-cover border border-zinc-200" />
+          <img src={imageSrcForDisplay(value) ?? ''} alt="" className="h-20 w-20 rounded-lg object-cover border border-zinc-200" />
           <Button type="button" variant="ghost" disabled={disabled || uploading} onClick={() => onChange(null)}>
             Remove
           </Button>
@@ -43,8 +50,11 @@ export function ImagePicker({
           try {
             const fd = new FormData();
             fd.append('file', file);
-            const res = await apiRequest<{ url: string }>('/api/v1/catalog/upload', { method: 'POST', body: fd });
-            onChange(res.url);
+            const res = await apiRequest<{ url?: string; path?: string }>('/api/v1/catalog/upload', {
+              method: 'POST',
+              body: fd,
+            });
+            onChange(res.path ?? res.url ?? null);
           } catch (err) {
             setLocalErr(err instanceof ApiError ? err.message : 'Upload failed');
           } finally {

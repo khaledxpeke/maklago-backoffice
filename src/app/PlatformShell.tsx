@@ -1,33 +1,62 @@
-import { Link, Outlet, useNavigate } from 'react-router-dom';
-import { LogOut, Store } from 'lucide-react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Building2, LogOut, Store, UsersRound, Wrench } from 'lucide-react';
 import { getToken, setPlatformToken } from '@/shared/api/client';
 import { Button } from '@/shared/ui/Button';
+import { cn } from '@/shared/lib/cn';
+
+const navClass = ({ isActive }: { isActive: boolean }) =>
+  cn(
+    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+    isActive ? 'bg-[var(--color-accent)]/12 text-[var(--color-accent)]' : 'text-zinc-600 hover:bg-zinc-100',
+  );
 
 export function PlatformShell() {
   const navigate = useNavigate();
   const hasStaffSession = Boolean(getToken());
 
   return (
-    <div className="min-h-dvh bg-[var(--color-surface)]">
-      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4">
-        <div className="flex items-center gap-2">
-          <Store className="h-5 w-5 text-[var(--color-accent)]" />
-          <span className="font-semibold text-zinc-900">Platform admin</span>
-          <span className="text-sm text-zinc-500">— tenants & restaurants</span>
+    <div className="flex min-h-dvh bg-[var(--color-surface)]">
+      <aside className="flex w-60 flex-col border-r border-zinc-200 bg-white">
+        <div className="border-b border-zinc-100 px-4 py-5">
+          <div className="flex items-center gap-2">
+            <Store className="h-5 w-5 shrink-0 text-[var(--color-accent)]" />
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-zinc-400">maklaGo</div>
+              <div className="font-semibold text-zinc-900">Platform admin</div>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <nav className="flex flex-1 flex-col gap-0.5 p-3">
+          <NavLink to="/platform/restaurants" className={navClass}>
+            <Building2 className="h-4 w-4 shrink-0" />
+            Restaurants
+          </NavLink>
+          <NavLink to="/platform/owners" className={navClass}>
+            <UsersRound className="h-4 w-4 shrink-0" />
+            Registry owners
+          </NavLink>
+        </nav>
+        <div className="border-t border-zinc-100 p-3">
           {hasStaffSession ? (
-            <Link to="/dashboard" className="text-sm font-medium text-[var(--color-accent)] underline">
-              Open restaurant app
-            </Link>
+            <NavLink
+              to="/dashboard"
+              className="mb-2 block rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/8"
+            >
+              ← Restaurant backoffice
+            </NavLink>
           ) : (
-            <Link to="/connect" className="text-sm text-zinc-600 underline">
+            <NavLink
+              to="/connect"
+              className="mb-2 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100"
+            >
+              <Wrench className="h-4 w-4" />
               Connection
-            </Link>
+            </NavLink>
           )}
           <Button
             variant="secondary"
             type="button"
+            className="w-full"
             onClick={() => {
               setPlatformToken(null);
               navigate('/platform-login', { replace: true });
@@ -37,8 +66,8 @@ export function PlatformShell() {
             Sign out
           </Button>
         </div>
-      </header>
-      <main className="mx-auto max-w-6xl p-8">
+      </aside>
+      <main className="min-w-0 flex-1 overflow-auto p-8">
         <Outlet />
       </main>
     </div>

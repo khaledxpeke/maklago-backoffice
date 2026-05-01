@@ -6,6 +6,7 @@ import {
   Settings,
   ShoppingBasket,
   Store,
+  Table2,
   Users,
   Wrench,
 } from 'lucide-react';
@@ -41,6 +42,10 @@ export function AppShell() {
           <NavLink to="/orders" className={navClass}>
             <ClipboardList className="h-4 w-4 shrink-0" />
             Orders
+          </NavLink>
+          <NavLink to="/tables" className={navClass}>
+            <Table2 className="h-4 w-4 shrink-0" />
+            Tables
           </NavLink>
           <NavLink to="/staff" className={navClass}>
             <Users className="h-4 w-4 shrink-0" />

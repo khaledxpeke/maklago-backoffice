@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { apiRequest } from '@/shared/api/client';
+import { apiRequest, getPlatformKey, getPlatformToken } from '@/shared/api/client';
 import { Card, CardTitle } from '@/shared/ui/Card';
 import { Input } from '@/shared/ui/Input';
 import { Label } from '@/shared/ui/Label';
@@ -28,6 +29,7 @@ function formatMoney(cents: number) {
 export function DashboardPage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const hasPlatformAccess = Boolean(getPlatformToken() || getPlatformKey());
 
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['stats', from, to],
@@ -44,6 +46,22 @@ export function DashboardPage() {
 
   return (
     <div>
+      {hasPlatformAccess && (
+        <Card className="mb-6 border-[var(--color-accent)]/25 bg-[var(--color-accent)]/5">
+          <CardTitle className="text-base">Platform admin</CardTitle>
+          <p className="mt-2 text-sm text-zinc-600">
+            Register new restaurants, set database URLs, and optionally create the venue owner login under{' '}
+            <Link to="/platform/restaurants" className="font-medium text-[var(--color-accent)] underline-offset-2 hover:underline">
+              Platform → Restaurants
+            </Link>
+            . Browse provisioned owner emails under{' '}
+            <Link to="/platform/owners" className="font-medium text-[var(--color-accent)] underline-offset-2 hover:underline">
+              Registry owners
+            </Link>
+            .
+          </p>
+        </Card>
+      )}
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Dashboard</h1>

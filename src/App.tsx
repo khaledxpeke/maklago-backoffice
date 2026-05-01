@@ -11,8 +11,10 @@ import { PlatformLoginPage } from '@/features/platform/PlatformLoginPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { CatalogPage } from '@/features/catalog/CatalogPage';
 import { OrdersPage } from '@/features/orders/OrdersPage';
+import { TablesPage } from '@/features/tables/TablesPage';
 import { StaffPage } from '@/features/staff/StaffPage';
 import { TenantSettingsPage } from '@/features/settings/TenantSettingsPage';
+import { PlatformOwnersPage } from '@/features/platform/PlatformOwnersPage';
 import { PlatformTenantsPage } from '@/features/platform/PlatformTenantsPage';
 import { Spinner } from '@/shared/ui/Spinner';
 
@@ -77,8 +79,10 @@ export default function App() {
             <Route path="/login" element={<LoginRoute />} />
 
             <Route element={<RequirePlatformAccess />}>
-              <Route element={<PlatformShell />}>
-                <Route path="/platform" element={<PlatformTenantsPage />} />
+              <Route path="/platform" element={<PlatformShell />}>
+                <Route index element={<Navigate to="/platform/restaurants" replace />} />
+                <Route path="restaurants" element={<PlatformTenantsPage />} />
+                <Route path="owners" element={<PlatformOwnersPage />} />
               </Route>
             </Route>
 
@@ -87,6 +91,7 @@ export default function App() {
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/catalog" element={<CatalogPage />} />
                 <Route path="/orders" element={<OrdersPage />} />
+                <Route path="/tables" element={<TablesPage />} />
                 <Route path="/staff" element={<StaffPage />} />
                 <Route path="/settings" element={<TenantSettingsPage />} />
               </Route>

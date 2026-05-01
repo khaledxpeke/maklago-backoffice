@@ -11,6 +11,8 @@ import { Badge } from '@/shared/ui/Badge';
 
 type OrderStatus = 'draft' | 'active' | 'completed' | 'canceled';
 
+type OrderFulfillment = 'dine_in' | 'takeaway';
+
 type OrderLine = {
   id: string;
   quantity: number;
@@ -26,11 +28,18 @@ type OrderLine = {
 type OrderListItem = {
   id: string;
   status: OrderStatus;
+  fulfillment: OrderFulfillment;
   subtotalCents: number;
   taxCents: number;
   totalCents: number;
   createdAt: string;
-  table: { id: string; name: string; zone: string | null } | null;
+  table: {
+    id: string;
+    name: string;
+    tableNumber: number;
+    status: string;
+    zone: string | null;
+  } | null;
   lines: OrderLine[];
 };
 
@@ -178,6 +187,7 @@ export function OrdersPage() {
                 <tr>
                   <th className="px-4 py-3">When</th>
                   <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Service</th>
                   <th className="px-4 py-3">Table</th>
                   <th className="px-4 py-3">Lines</th>
                   <th className="px-4 py-3 text-right">Total</th>
@@ -194,7 +204,24 @@ export function OrdersPage() {
                       <Badge className={statusBadgeClass(o.status)}>{o.status}</Badge>
                     </td>
                     <td className="px-4 py-3 text-zinc-700">
-                      {o.table ? `${o.table.name}${o.table.zone ? ` · ${o.table.zone}` : ''}` : '—'}
+                      {o.fulfillment === 'takeaway' ? (
+                        <span className="text-zinc-600">Takeaway</span>
+                      ) : (
+                        <span className="font-medium text-zinc-800">Dine-in</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-700">
+                      {o.table ? (
+                        <span>
+                          <span className="tabular-nums font-semibold text-zinc-900">#{o.table.tableNumber}</span>
+                          {' · '}
+                          {o.table.name}
+                          {o.table.zone ? ` · ${o.table.zone}` : ''}
+                          <span className="ml-1.5 text-xs text-zinc-500">({o.table.status})</span>
+                        </span>
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td className="max-w-[220px] truncate px-4 py-3 text-zinc-600">
                       {o.lines.map((l) => `${l.quantity}× ${l.product.name}`).join(', ') || '—'}
@@ -227,14 +254,20 @@ export function OrdersPage() {
           <div className="space-y-4 text-sm">
             <div className="flex flex-wrap items-center gap-2">
               <Badge className={statusBadgeClass(detail.status)}>{detail.status}</Badge>
+              <Badge className="bg-zinc-100 text-zinc-700">
+                {detail.fulfillment === 'takeaway' ? 'Takeaway' : 'Dine-in'}
+              </Badge>
               <span className="text-zinc-500">{new Date(detail.createdAt).toLocaleString()}</span>
             </div>
             {detail.table && (
               <div>
                 <div className="text-xs font-medium uppercase text-zinc-500">Table</div>
                 <div className="text-zinc-900">
+                  <span className="tabular-nums font-semibold">#{detail.table.tableNumber}</span>
+                  {' · '}
                   {detail.table.name}
                   {detail.table.zone ? ` · ${detail.table.zone}` : ''}
+                  <span className="ml-2 text-zinc-500">({detail.table.status})</span>
                 </div>
               </div>
             )}

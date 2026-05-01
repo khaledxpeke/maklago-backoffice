@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/shared/api/client';
 import { ApiError } from '@/shared/api/errors';
 import type { StaffRole } from '@/app/auth-context';
+import { useAuth } from '@/app/useAuth';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Input } from '@/shared/ui/Input';
@@ -22,6 +23,8 @@ type StaffRow = {
 
 export function StaffPage() {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const actorRole: StaffRole = user?.role ?? 'cashier';
   const [modal, setModal] = useState<'create' | { edit: StaffRow } | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -59,7 +62,9 @@ export function StaffPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900">Staff</h1>
-          <p className="text-sm text-zinc-500">Invite and manage team members.</p>
+          <p className="text-sm text-zinc-500">
+            Invite and manage team members. Only owners can edit owner accounts; managers cannot create or assign the owner role.
+          </p>
         </div>
         <Button type="button" onClick={() => setModal('create')}>
           Add staff
@@ -84,7 +89,9 @@ export function StaffPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((s) => (
+                {rows.map((s) => {
+                  const canEdit = !(s.role === 'owner' && actorRole !== 'owner');
+                  return (
                   <tr key={s.id} className="border-b border-zinc-100">
                     <td className="py-2 font-medium">{s.fullName}</td>
                     <td className="py-2">{s.email}</td>
@@ -93,12 +100,17 @@ export function StaffPage() {
                     </td>
                     <td className="py-2">{s.isActive ? 'Active' : 'Inactive'}</td>
                     <td className="py-2 text-right">
-                      <Button variant="ghost" type="button" className="text-sm" onClick={() => setModal({ edit: s })}>
-                        Edit
-                      </Button>
+                      {canEdit ? (
+                        <Button variant="ghost" type="button" className="text-sm" onClick={() => setModal({ edit: s })}>
+                          Edit
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-zinc-400">Owner only</span>
+                      )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -109,6 +121,7 @@ export function StaffPage() {
         <StaffFormModal
           key="new"
           title="New staff"
+          actorRole={actorRole}
           onClose={() => setModal(null)}
           onSave={(body) => create.mutate(body)}
           pending={create.isPending}
@@ -118,6 +131,7 @@ export function StaffPage() {
         <StaffFormModal
           key={modal.edit.id}
           title="Edit staff"
+          actorRole={actorRole}
           initial={modal.edit}
           onClose={() => setModal(null)}
           onSave={(body) => patch.mutate({ id: modal.edit.id, body })}
@@ -130,21 +144,28 @@ export function StaffPage() {
 
 function StaffFormModal({
   title,
+  actorRole,
   initial,
   onClose,
   onSave,
   pending,
 }: {
   title: string;
+  actorRole: StaffRole;
   initial?: StaffRow;
   onClose: () => void;
   onSave: (body: Record<string, unknown>) => void;
   pending: boolean;
 }) {
+  const roleChoices: StaffRole[] =
+    actorRole === 'owner' ? ['cashier', 'manager', 'owner'] : ['cashier', 'manager'];
+  const defaultRole: StaffRole =
+    initial?.role && roleChoices.includes(initial.role) ? initial.role : (roleChoices[0] ?? 'cashier');
+
   const [email, setEmail] = useState(initial?.email ?? '');
   const [fullName, setFullName] = useState(initial?.fullName ?? '');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<StaffRole>(initial?.role ?? 'cashier');
+  const [role, setRole] = useState<StaffRole>(defaultRole);
   const [isActive, setIsActive] = useState(initial?.isActive ?? true);
 
   return (
@@ -180,9 +201,11 @@ function StaffFormModal({
             value={role}
             onChange={(e) => setRole(e.target.value as StaffRole)}
           >
-            <option value="cashier">Cashier</option>
-            <option value="manager">Manager</option>
-            <option value="owner">Owner</option>
+            {roleChoices.map((r) => (
+              <option key={r} value={r}>
+                {r === 'cashier' ? 'Cashier' : r === 'manager' ? 'Manager' : 'Owner'}
+              </option>
+            ))}
           </select>
         </div>
         <div>

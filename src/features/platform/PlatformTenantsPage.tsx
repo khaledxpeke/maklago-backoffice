@@ -290,7 +290,7 @@ export function PlatformTenantsPage() {
             <div className="border-t border-zinc-200 pt-4">
               <p className="text-sm font-medium text-zinc-800">Owner account (optional)</p>
               <p className="mt-1 text-xs text-zinc-500">
-                If set, creates the same user as <strong>restaurant staff</strong> (OWNER role) in the tenant database — use these credentials on the Connection page to sign in.
+                If set, creates the same user as <strong>restaurant staff</strong> (owner role) in the tenant database — use these credentials on the Connection page to sign in.
               </p>
               <div className="mt-3 space-y-3">
                 <div>

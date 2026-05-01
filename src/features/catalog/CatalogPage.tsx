@@ -35,7 +35,7 @@ type Product = {
   image: string | null;
   outOfStock?: boolean;
   visible?: boolean;
-  kind?: 'SIMPLE' | 'COMPOSED';
+  kind?: 'simple' | 'composed';
   type?: string[];
   compositionStepCount?: number;
 };
@@ -347,7 +347,7 @@ export function CatalogPage() {
                         >
                           {p.outOfStock ? 'Out of stock' : 'In stock'}
                         </Badge>
-                        {p.kind === 'COMPOSED' ? (
+                        {p.kind === 'composed' ? (
                           <Badge className="border border-indigo-200/80 bg-indigo-50/95 text-indigo-900 shadow-sm backdrop-blur-sm">
                             Composed · {p.compositionStepCount ?? p.type?.length ?? 0} steps
                           </Badge>
@@ -572,7 +572,7 @@ function ProductFormModal({
   const [sort, setSort] = useState(String(initial?.sortOrder ?? 0));
   const [image, setImage] = useState<string | null>(initial?.image ?? null);
   const [outOfStock, setOutOfStock] = useState(initial?.outOfStock ?? false);
-  const [kind, setKind] = useState<'SIMPLE' | 'COMPOSED'>(initial?.kind ?? 'SIMPLE');
+  const [kind, setKind] = useState<'simple' | 'composed'>(initial?.kind ?? 'simple');
   const [stepIds, setStepIds] = useState<string[]>(() =>
     initial?.type?.length ? [...initial.type] : [],
   );
@@ -613,7 +613,7 @@ function ProductFormModal({
           e.preventDefault();
           const priceCents = Math.round(Number(price) * 100);
           if (Number.isNaN(priceCents)) return;
-          if (kind === 'COMPOSED' && stepIds.length === 0) {
+          if (kind === 'composed' && stepIds.length === 0) {
             return;
           }
           const body: Record<string, unknown> = {
@@ -625,7 +625,7 @@ function ProductFormModal({
             image,
             outOfStock,
             kind,
-            ...(kind === 'COMPOSED' ? { compositionTypeIds: stepIds } : { compositionTypeIds: [] }),
+            ...(kind === 'composed' ? { compositionTypeIds: stepIds } : { compositionTypeIds: [] }),
           };
           onSave(body);
         }}
@@ -652,20 +652,20 @@ function ProductFormModal({
             className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
             value={kind}
             onChange={(e) => {
-              const k = e.target.value as 'SIMPLE' | 'COMPOSED';
+              const k = e.target.value as 'simple' | 'composed';
               setKind(k);
-              if (k === 'SIMPLE') setStepIds([]);
+              if (k === 'simple') setStepIds([]);
             }}
           >
-            <option value="SIMPLE">Simple (add to cart directly; optional modifiers)</option>
-            <option value="COMPOSED">Composed (customer picks extras per step)</option>
+            <option value="simple">Simple (add to cart directly; optional modifiers)</option>
+            <option value="composed">Composed (customer picks extras per step)</option>
           </select>
           <p className="mt-1 text-xs text-zinc-500">
             Composed products need composition types defined under the Composition tab, with extras on each type.
           </p>
         </div>
 
-        {kind === 'COMPOSED' ? (
+        {kind === 'composed' ? (
           <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-3">
             <Label>Composition steps (order)</Label>
             {stepIds.length === 0 ? (
@@ -752,7 +752,7 @@ function ProductFormModal({
           />
           Out of stock
         </label>
-        <Button type="submit" disabled={pending || (kind === 'COMPOSED' && stepIds.length === 0)} className="w-full">
+        <Button type="submit" disabled={pending || (kind === 'composed' && stepIds.length === 0)} className="w-full">
           {pending ? <Spinner className="h-4 w-4" /> : null}
           Save
         </Button>

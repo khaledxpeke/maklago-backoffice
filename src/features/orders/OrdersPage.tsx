@@ -9,7 +9,7 @@ import { Modal } from '@/shared/ui/Modal';
 import { Spinner } from '@/shared/ui/Spinner';
 import { Badge } from '@/shared/ui/Badge';
 
-type OrderStatus = 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELED';
+type OrderStatus = 'draft' | 'active' | 'completed' | 'canceled';
 
 type OrderLine = {
   id: string;
@@ -87,12 +87,12 @@ function formatComposition(raw: unknown): string | null {
 
 function statusBadgeClass(status: OrderStatus): string {
   switch (status) {
-    case 'COMPLETED':
+    case 'completed':
       return 'bg-emerald-100 text-emerald-800';
-    case 'ACTIVE':
-    case 'DRAFT':
+    case 'active':
+    case 'draft':
       return 'bg-amber-100 text-amber-900';
-    case 'CANCELED':
+    case 'canceled':
       return 'bg-red-100 text-red-800';
     default:
       return '';
@@ -153,10 +153,10 @@ export function OrdersPage() {
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="">All</option>
-              <option value="DRAFT">Draft</option>
-              <option value="ACTIVE">Active</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="CANCELED">Canceled</option>
+              <option value="draft">Draft</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="canceled">Canceled</option>
             </select>
           </div>
         </div>
@@ -282,21 +282,21 @@ export function OrdersPage() {
             </div>
 
             <div className="flex flex-wrap gap-2 pt-2">
-              {detail.status === 'ACTIVE' || detail.status === 'DRAFT' ? (
+              {detail.status === 'active' || detail.status === 'draft' ? (
                 <Button
                   type="button"
                   disabled={patchStatus.isPending}
-                  onClick={() => patchStatus.mutate({ id: detail.id, status: 'COMPLETED' })}
+                  onClick={() => patchStatus.mutate({ id: detail.id, status: 'completed' })}
                 >
                   Mark completed
                 </Button>
               ) : null}
-              {detail.status !== 'CANCELED' && detail.status !== 'COMPLETED' ? (
+              {detail.status !== 'canceled' && detail.status !== 'completed' ? (
                 <Button
                   type="button"
                   variant="secondary"
                   disabled={patchStatus.isPending}
-                  onClick={() => patchStatus.mutate({ id: detail.id, status: 'CANCELED' })}
+                  onClick={() => patchStatus.mutate({ id: detail.id, status: 'canceled' })}
                 >
                   Cancel
                 </Button>

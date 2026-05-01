@@ -17,7 +17,7 @@ type SettingsRes = {
 export function TenantSettingsPage() {
   const qc = useQueryClient();
   const { user } = useAuth();
-  const canEditTax = user?.role === 'OWNER' || user?.role === 'MANAGER';
+  const canEditTax = user?.role === 'owner' || user?.role === 'manager';
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings'],

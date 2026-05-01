@@ -1,6 +1,6 @@
 import { createContext } from 'react';
 
-export type StaffRole = 'OWNER' | 'MANAGER' | 'CASHIER';
+export type StaffRole = 'owner' | 'manager' | 'cashier';
 
 export type StaffUser = {
   id: string;

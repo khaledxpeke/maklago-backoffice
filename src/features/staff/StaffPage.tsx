@@ -144,7 +144,7 @@ function StaffFormModal({
   const [email, setEmail] = useState(initial?.email ?? '');
   const [fullName, setFullName] = useState(initial?.fullName ?? '');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<StaffRole>(initial?.role ?? 'CASHIER');
+  const [role, setRole] = useState<StaffRole>(initial?.role ?? 'cashier');
   const [isActive, setIsActive] = useState(initial?.isActive ?? true);
 
   return (
@@ -180,9 +180,9 @@ function StaffFormModal({
             value={role}
             onChange={(e) => setRole(e.target.value as StaffRole)}
           >
-            <option value="CASHIER">CASHIER</option>
-            <option value="MANAGER">MANAGER</option>
-            <option value="OWNER">OWNER</option>
+            <option value="cashier">Cashier</option>
+            <option value="manager">Manager</option>
+            <option value="owner">Owner</option>
           </select>
         </div>
         <div>

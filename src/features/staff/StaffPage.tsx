@@ -19,6 +19,8 @@ type StaffRow = {
   role: StaffRole;
   isActive: boolean;
   createdAt: string;
+  hasPin?: boolean;
+  requiresMobilePin?: boolean;
 };
 
 export function StaffPage() {
@@ -63,7 +65,7 @@ export function StaffPage() {
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900">Staff</h1>
           <p className="text-sm text-zinc-500">
-            Invite and manage team members. Only owners can edit owner accounts; managers cannot create or assign the owner role.
+            Invite and manage team members. Owner PIN is configured by platform admin only; owners can turn mobile PIN gate on or off in the mobile app.
           </p>
         </div>
         <Button type="button" onClick={() => setModal('create')}>
@@ -84,6 +86,8 @@ export function StaffPage() {
                   <th className="pb-2 font-medium">Name</th>
                   <th className="pb-2 font-medium">Email</th>
                   <th className="pb-2 font-medium">Role</th>
+                  <th className="pb-2 font-medium">PIN configured</th>
+                  <th className="pb-2 font-medium">Mobile PIN gate</th>
                   <th className="pb-2 font-medium">Status</th>
                   <th className="pb-2" />
                 </tr>
@@ -97,6 +101,28 @@ export function StaffPage() {
                     <td className="py-2">{s.email}</td>
                     <td className="py-2">
                       <Badge>{s.role}</Badge>
+                    </td>
+                    <td className="py-2 text-xs text-zinc-600">
+                      {s.role === 'owner' ? (
+                        s.hasPin ? (
+                          <span className="text-emerald-700">Yes</span>
+                        ) : (
+                          <span className="text-zinc-400">No</span>
+                        )
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className="py-2 text-xs text-zinc-600">
+                      {s.role === 'owner' && s.hasPin ? (
+                        s.requiresMobilePin ? (
+                          <span className="text-emerald-700">On</span>
+                        ) : (
+                          <span className="text-amber-700">Off</span>
+                        )
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td className="py-2">{s.isActive ? 'Active' : 'Inactive'}</td>
                     <td className="py-2 text-right">
@@ -182,7 +208,8 @@ function StaffFormModal({
             if (password.length < 8) {
               return;
             }
-            onSave({ email, password, fullName, role });
+            const body: Record<string, unknown> = { email, password, fullName, role };
+            onSave(body);
           }
         }}
       >
@@ -217,6 +244,18 @@ function StaffFormModal({
             <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
             Active
           </label>
+        )}
+        {initial?.role === 'owner' && (
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+            <p>
+              <strong>PIN:</strong>{' '}
+              {initial.hasPin ? (
+                <>configured (mobile gate {initial.requiresMobilePin ? 'on' : 'off'})</>
+              ) : (
+                <>not configured — platform admin sets this under Restaurants.</>
+              )}
+            </p>
+          </div>
         )}
         <Button type="submit" disabled={pending} className="w-full">
           {pending ? <Spinner className="h-4 w-4" /> : null}

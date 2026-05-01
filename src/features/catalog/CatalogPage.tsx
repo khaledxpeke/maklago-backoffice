@@ -577,6 +577,7 @@ function ProductFormModal({
     initial?.type?.length ? [...initial.type] : [],
   );
   const [addStepId, setAddStepId] = useState('');
+  const [stepSearch, setStepSearch] = useState('');
 
   const { data: compTypesData } = useQuery({
     queryKey: ['catalog', 'composition-types'],
@@ -588,6 +589,14 @@ function ProductFormModal({
 
   const assignableTypes = (compTypesData?.compositionTypes ?? []).filter((t) => t.isActive !== false);
   const availableToAdd = assignableTypes.filter((t) => !stepIds.includes(t.id));
+  const stepQ = stepSearch.trim().toLowerCase();
+  const availableFiltered =
+    stepQ === ''
+      ? availableToAdd
+      : availableToAdd.filter((t) => {
+          const hay = `${t.label} ${t.name}`.toLowerCase();
+          return hay.includes(stepQ);
+        });
 
   const moveStep = (idx: number, dir: -1 | 1) => {
     const j = idx + dir;
@@ -606,7 +615,7 @@ function ProductFormModal({
   };
 
   return (
-    <Modal title={title} onClose={onClose}>
+    <Modal title={title} onClose={onClose} className="max-w-lg">
       <form
         className="space-y-4"
         onSubmit={(e) => {
@@ -671,13 +680,13 @@ function ProductFormModal({
             {stepIds.length === 0 ? (
               <p className="mt-2 text-sm text-amber-800">Add at least one composition type as a step.</p>
             ) : (
-              <ul className="mt-2 space-y-1">
+              <ul className="mt-2 max-h-52 space-y-1 overflow-y-auto pr-1">
                 {stepIds.map((tid, idx) => {
                   const meta = assignableTypes.find((t) => t.id === tid);
                   return (
                     <li
                       key={tid}
-                      className="flex items-center justify-between gap-2 rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm"
+                      className="flex shrink-0 items-center justify-between gap-2 rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm"
                     >
                       <span>
                         {idx + 1}. {meta?.label ?? meta?.name ?? tid}
@@ -698,14 +707,27 @@ function ProductFormModal({
                 })}
               </ul>
             )}
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 space-y-2">
+              <div>
+                <Label htmlFor="add-step-search">Search composition types</Label>
+                <Input
+                  id="add-step-search"
+                  type="search"
+                  autoComplete="off"
+                  placeholder="Filter by label or internal name…"
+                  value={stepSearch}
+                  onChange={(e) => setStepSearch(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
               <select
                 className="min-w-[180px] flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
                 value={addStepId}
                 onChange={(e) => setAddStepId(e.target.value)}
               >
                 <option value="">Add step…</option>
-                {availableToAdd.map((t) => (
+                {availableFiltered.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.label} ({t.name})
                   </option>
@@ -723,6 +745,10 @@ function ProductFormModal({
               >
                 Add
               </Button>
+            </div>
+              {availableToAdd.length > 0 && availableFiltered.length === 0 ? (
+                <p className="text-xs text-zinc-500">No types match this search.</p>
+              ) : null}
             </div>
           </div>
         ) : null}

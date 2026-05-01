@@ -7,6 +7,10 @@ export type StaffUser = {
   email: string;
   fullName: string;
   role: StaffRole;
+  /** Owner: a PIN exists (set by platform admin). */
+  hasPin?: boolean;
+  /** Owner: gated mobile flows should run verify-pin when true. */
+  requiresMobilePin?: boolean;
 };
 
 type AuthState = {

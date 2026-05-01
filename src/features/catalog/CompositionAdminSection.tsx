@@ -535,6 +535,13 @@ function AssignExtrasModal({
   pending: boolean;
 }) {
   const [ordered, setOrdered] = useState<string[]>(() => [...compositionType.extraIds]);
+  const [extraSearch, setExtraSearch] = useState('');
+
+  const extraQuery = extraSearch.trim().toLowerCase();
+  const filteredExtras =
+    extraQuery === ''
+      ? allExtras
+      : allExtras.filter((row) => row.name.toLowerCase().includes(extraQuery));
 
   const move = (idx: number, dir: -1 | 1) => {
     const j = idx + dir;
@@ -553,15 +560,35 @@ function AssignExtrasModal({
   };
 
   return (
-    <Modal title={`Extras · ${compositionType.label}`} onClose={onClose}>
+    <Modal title={`Extras · ${compositionType.label}`} onClose={onClose} className="max-w-lg">
       <p className="mb-3 text-sm text-zinc-600">
         Choose which extras belong to this step. Order matches the list below (top = first in app).
       </p>
-      <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-zinc-200 p-2">
+      <div className="mb-2">
+        <Label htmlFor="assign-extras-search">Search extras</Label>
+        <Input
+          id="assign-extras-search"
+          type="search"
+          autoComplete="off"
+          placeholder="Filter by name…"
+          value={extraSearch}
+          onChange={(e) => setExtraSearch(e.target.value)}
+          className="mt-1"
+        />
+        {allExtras.length > 0 ? (
+          <p className="mt-1 text-xs text-zinc-500">
+            Showing {filteredExtras.length} of {allExtras.length}
+            {extraQuery ? ` matching “${extraSearch.trim()}”` : ''}
+          </p>
+        ) : null}
+      </div>
+      <div className="max-h-52 space-y-2 overflow-y-auto rounded-lg border border-zinc-200 p-2">
         {allExtras.length === 0 ? (
           <p className="text-sm text-zinc-500">Create extras first.</p>
+        ) : filteredExtras.length === 0 ? (
+          <p className="text-sm text-zinc-500">No extras match this search.</p>
         ) : (
-          allExtras.map((row) => (
+          filteredExtras.map((row) => (
             <label key={row.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-zinc-50">
               <input
                 type="checkbox"
@@ -577,11 +604,11 @@ function AssignExtrasModal({
       {ordered.length > 0 ? (
         <div className="mt-4">
           <Label>Order on this step</Label>
-          <ul className="mt-2 space-y-1 rounded-lg border border-zinc-200 bg-zinc-50/50 p-2">
+          <ul className="mt-2 max-h-52 space-y-1 overflow-y-auto rounded-lg border border-zinc-200 bg-zinc-50/50 p-2">
             {ordered.map((id, idx) => {
               const row = allExtras.find((i) => i.id === id);
               return (
-                <li key={id} className="flex items-center justify-between gap-2 rounded-md bg-white px-2 py-1.5 text-sm shadow-sm">
+                <li key={id} className="flex shrink-0 items-center justify-between gap-2 rounded-md bg-white px-2 py-1.5 text-sm shadow-sm">
                   <span>{row?.name ?? id}</span>
                   <span className="flex gap-1">
                     <Button type="button" variant="ghost" className="px-2 py-0.5 text-xs" onClick={() => move(idx, -1)}>

@@ -25,6 +25,17 @@ type TenantDetail = TenantRow & {
   activeOwnerCountError?: string | null;
 };
 
+type PlatformStaffRow = {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
+  hasPin: boolean;
+  requiresMobilePin: boolean;
+};
+
 type CreateSuccess = {
   slug: string;
   name: string;
@@ -45,11 +56,13 @@ export function PlatformTenantsPage() {
   const [ownerEmail, setOwnerEmail] = useState('');
   const [ownerPassword, setOwnerPassword] = useState('');
   const [ownerFullName, setOwnerFullName] = useState('');
+  const [ownerPinCreate, setOwnerPinCreate] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<TenantRow | null>(null);
   const [deleteConfirmSlug, setDeleteConfirmSlug] = useState('');
   const [bootEmail, setBootEmail] = useState('');
   const [bootPassword, setBootPassword] = useState('');
   const [bootFullName, setBootFullName] = useState('');
+  const [bootOwnerPin, setBootOwnerPin] = useState('');
   const [err, setErr] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
@@ -63,6 +76,7 @@ export function PlatformTenantsPage() {
       setBootEmail('');
       setBootPassword('');
       setBootFullName('');
+      setBootOwnerPin('');
     }
   }, [edit?.id]);
 
@@ -72,7 +86,7 @@ export function PlatformTenantsPage() {
       body,
     }: {
       id: string;
-      body: { ownerEmail: string; ownerPassword: string; ownerFullName: string };
+      body: { ownerEmail: string; ownerPassword: string; ownerFullName: string; ownerPin?: string };
     }) =>
       apiRequest<{ staff: { id: string; email: string; fullName: string; role: string } }>(
         `/platform/v1/tenants/${id}/bootstrap-owner`,
@@ -85,6 +99,7 @@ export function PlatformTenantsPage() {
       ),
     onSuccess: async (_data, vars) => {
       void qc.invalidateQueries({ queryKey: ['platform'] });
+      void qc.invalidateQueries({ queryKey: ['platform', 'tenant-staff', vars.id] });
       try {
         const res = await apiRequest<{ tenant: TenantDetail }>(`/platform/v1/tenants/${vars.id}`, {
           skipTenant: true,
@@ -96,6 +111,7 @@ export function PlatformTenantsPage() {
         setErr(e instanceof ApiError ? e.message : 'Refresh failed');
       }
       setBootPassword('');
+      setBootOwnerPin('');
     },
     onError: (e) => setErr(e instanceof ApiError ? e.message : 'Bootstrap failed'),
   });
@@ -110,6 +126,7 @@ export function PlatformTenantsPage() {
       }),
     onSuccess: async (_data, vars) => {
       void qc.invalidateQueries({ queryKey: ['platform'] });
+      void qc.invalidateQueries({ queryKey: ['platform', 'tenant-staff', vars.id] });
       setErr(null);
       try {
         const res = await apiRequest<{ tenant: TenantDetail }>(`/platform/v1/tenants/${vars.id}`, {
@@ -148,6 +165,7 @@ export function PlatformTenantsPage() {
       setOwnerEmail('');
       setOwnerPassword('');
       setOwnerFullName('');
+      setOwnerPinCreate('');
       setErr(null);
     },
     onError: (e) => setErr(e instanceof ApiError ? e.message : 'Create failed'),
@@ -359,6 +377,14 @@ export function PlatformTenantsPage() {
                 body.ownerEmail = em;
                 body.ownerPassword = pw;
                 body.ownerFullName = fn;
+                if (ownerPinCreate.replace(/\D/g, '').length > 0) {
+                  const p = ownerPinCreate.replace(/\D/g, '').slice(0, 4);
+                  if (p.length !== 4) {
+                    setErr('Owner PIN must be exactly 4 digits, or leave empty.');
+                    return;
+                  }
+                  body.ownerPin = p;
+                }
               }
 
               create.mutate(body);
@@ -457,6 +483,21 @@ export function PlatformTenantsPage() {
                       onChange={(e) => setOwnerFullName(e.target.value)}
                       required={bootstrapOwner}
                     />
+                  </div>
+                  <div>
+                    <Label htmlFor="owner-pin-create">Owner PIN (optional, 4 digits)</Label>
+                    <Input
+                      id="owner-pin-create"
+                      inputMode="numeric"
+                      maxLength={4}
+                      autoComplete="off"
+                      placeholder="Set by platform only"
+                      value={ownerPinCreate}
+                      onChange={(e) => setOwnerPinCreate(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    />
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Restaurant staff cannot change this later from Staff — only here or below after create.
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -564,15 +605,19 @@ export function PlatformTenantsPage() {
             </div>
 
             {edit.activeOwnerCount !== null && edit.activeOwnerCount > 0 ? (
-              <div className="space-y-1">
-                <p className="text-xs text-zinc-500">
-                  Active owners in tenant DB: <strong>{edit.activeOwnerCount}</strong>
-                </p>
-                <p className="text-xs text-zinc-500">
-                  Forgot to add an owner at provision time? That flow only applies when this count is{' '}
-                  <strong>0</strong>. With an owner already present, sign in as owner (Connection page) and add users from{' '}
-                  <strong>Staff</strong>, or call <code className="rounded bg-zinc-100 px-1 font-mono text-[11px]">POST /api/v1/staff</code>.
-                </p>
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <p className="text-xs text-zinc-500">
+                    Active owners in tenant DB: <strong>{edit.activeOwnerCount}</strong>
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    Forgot to add an owner at provision time? That flow only applies when this count is{' '}
+                    <strong>0</strong>. With an owner already present, sign in as owner (Connection page) and add users from{' '}
+                    <strong>Staff</strong>, or call{' '}
+                    <code className="rounded bg-zinc-100 px-1 font-mono text-[11px]">POST /api/v1/staff</code>.
+                  </p>
+                </div>
+                <OwnerPinPlatformSection tenantId={edit.id} onMessage={setErr} />
               </div>
             ) : (
               <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-3">
@@ -625,6 +670,17 @@ export function PlatformTenantsPage() {
                   <Label htmlFor="boot-owner-fullname">Full name</Label>
                   <Input id="boot-owner-fullname" value={bootFullName} onChange={(e) => setBootFullName(e.target.value)} />
                 </div>
+                <div>
+                  <Label htmlFor="boot-owner-pin">Owner PIN (optional, 4 digits)</Label>
+                  <Input
+                    id="boot-owner-pin"
+                    inputMode="numeric"
+                    maxLength={4}
+                    autoComplete="off"
+                    value={bootOwnerPin}
+                    onChange={(e) => setBootOwnerPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  />
+                </div>
                 <Button
                   type="button"
                   variant="secondary"
@@ -643,9 +699,23 @@ export function PlatformTenantsPage() {
                       setErr('Password must be at least 8 characters.');
                       return;
                     }
+                    const body: {
+                      ownerEmail: string;
+                      ownerPassword: string;
+                      ownerFullName: string;
+                      ownerPin?: string;
+                    } = { ownerEmail: em, ownerPassword: pw, ownerFullName: fn };
+                    const pinDigits = bootOwnerPin.replace(/\D/g, '').slice(0, 4);
+                    if (pinDigits.length > 0) {
+                      if (pinDigits.length !== 4) {
+                        setErr('Owner PIN must be exactly 4 digits, or leave empty.');
+                        return;
+                      }
+                      body.ownerPin = pinDigits;
+                    }
                     bootstrapOwnerMutation.mutate({
                       id: edit.id,
-                      body: { ownerEmail: em, ownerPassword: pw, ownerFullName: fn },
+                      body,
                     });
                   }}
                 >
@@ -662,6 +732,135 @@ export function PlatformTenantsPage() {
           </form>
         </Modal>
       )}
+    </div>
+  );
+}
+
+function OwnerPinPlatformSection({
+  tenantId,
+  onMessage,
+}: {
+  tenantId: string;
+  onMessage: (msg: string | null) => void;
+}) {
+  const qc = useQueryClient();
+  const [draftById, setDraftById] = useState<Record<string, string>>({});
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['platform', 'tenant-staff', tenantId],
+    queryFn: () =>
+      apiRequest<{ staff: PlatformStaffRow[] }>(`/platform/v1/tenants/${tenantId}/staff`, {
+        skipTenant: true,
+        platform: true,
+      }),
+  });
+
+  const setPin = useMutation({
+    mutationFn: ({ staffId, pin }: { staffId: string; pin: string }) =>
+      apiRequest(`/platform/v1/tenants/${tenantId}/staff/${staffId}/pin`, {
+        method: 'PUT',
+        body: JSON.stringify({ pin }),
+        skipTenant: true,
+        platform: true,
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['platform', 'tenant-staff', tenantId] });
+      onMessage(null);
+    },
+    onError: (e) => onMessage(e instanceof ApiError ? e.message : 'PIN update failed'),
+  });
+
+  const clearPin = useMutation({
+    mutationFn: (staffId: string) =>
+      apiRequest(`/platform/v1/tenants/${tenantId}/staff/${staffId}/pin`, {
+        method: 'DELETE',
+        skipTenant: true,
+        platform: true,
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['platform', 'tenant-staff', tenantId] });
+      onMessage(null);
+    },
+    onError: (e) => onMessage(e instanceof ApiError ? e.message : 'Failed to remove PIN'),
+  });
+
+  const owners = (data?.staff ?? []).filter((s) => s.role === 'owner');
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-2">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (error) {
+    const msg =
+      error instanceof ApiError ? error.message : error instanceof Error ? error.message : 'Request failed';
+    return <p className="text-xs text-red-700">Could not load staff for PIN management: {msg}</p>;
+  }
+
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 px-3 py-3">
+      <p className="text-sm font-medium text-zinc-900">Owner PIN</p>
+      <p className="mt-1 text-xs text-zinc-600">
+        Set or remove the 4-digit PIN per owner. The tenant Staff page is view-only for PIN; owners toggle requiring PIN on mobile via{' '}
+        <code className="rounded bg-zinc-100 px-1 text-[11px]">PATCH /api/v1/auth/me/pin-mobile-enabled</code>.
+      </p>
+      <ul className="mt-3 space-y-3">
+        {owners.map((o) => (
+          <li key={o.id} className="rounded border border-zinc-200 bg-white px-2 py-2 text-xs">
+            <div className="font-medium text-zinc-900">{o.fullName}</div>
+            <div className="text-zinc-500">{o.email}</div>
+            <div className="mt-1 text-zinc-600">
+              PIN:{' '}
+              {o.hasPin ? <span className="text-emerald-700">set</span> : <span className="text-zinc-400">not set</span>}
+              {o.hasPin ? <span className="ml-2">· Mobile gate: {o.requiresMobilePin ? 'on' : 'off'}</span> : null}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Input
+                className="max-w-[6rem] font-mono"
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="PIN"
+                value={draftById[o.id] ?? ''}
+                onChange={(e) =>
+                  setDraftById((prev) => ({
+                    ...prev,
+                    [o.id]: e.target.value.replace(/\D/g, '').slice(0, 4),
+                  }))
+                }
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                className="text-xs"
+                disabled={setPin.isPending || (draftById[o.id] ?? '').length !== 4}
+                onClick={() => {
+                  const pin = draftById[o.id] ?? '';
+                  if (!/^\d{4}$/.test(pin)) return;
+                  setPin.mutate({ staffId: o.id, pin });
+                  setDraftById((prev) => ({ ...prev, [o.id]: '' }));
+                }}
+              >
+                {setPin.isPending ? <Spinner className="h-4 w-4" /> : null}
+                Save PIN
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-xs text-red-700"
+                disabled={!o.hasPin || clearPin.isPending}
+                onClick={() => clearPin.mutate(o.id)}
+              >
+                {clearPin.isPending ? <Spinner className="h-4 w-4" /> : null}
+                Remove PIN
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {owners.length === 0 ? <p className="mt-2 text-xs text-zinc-500">No owner accounts in tenant DB.</p> : null}
     </div>
   );
 }

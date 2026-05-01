@@ -13,7 +13,7 @@ import { ImagePicker } from './ImagePicker';
 
 const money = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export type IngredientRow = {
+export type ExtraRow = {
   id: string;
   name: string;
   image: string | null;
@@ -36,11 +36,11 @@ export type CompositionTypeRow = {
   mode: string;
   sortOrder: number;
   isActive?: boolean;
-  ingredientIds: string[];
-  ingredients: IngredientRow[];
+  extraIds: string[];
+  extras: ExtraRow[];
 };
 
-type Tab = 'ingredients' | 'types';
+type Tab = 'extras' | 'types';
 
 export function CompositionAdminSection({
   activeTab,
@@ -51,9 +51,9 @@ export function CompositionAdminSection({
 }) {
   const qc = useQueryClient();
 
-  const { data: ingData, isLoading: ingLoading } = useQuery({
-    queryKey: ['catalog', 'ingredients'],
-    queryFn: () => apiRequest<{ ingredients: IngredientRow[] }>('/api/v1/catalog/ingredients'),
+  const { data: extraData, isLoading: extraLoading } = useQuery({
+    queryKey: ['catalog', 'extras'],
+    queryFn: () => apiRequest<{ extras: ExtraRow[] }>('/api/v1/catalog/extras'),
   });
 
   const { data: typeData, isLoading: typeLoading } = useQuery({
@@ -62,16 +62,16 @@ export function CompositionAdminSection({
       apiRequest<{ compositionTypes: CompositionTypeRow[] }>('/api/v1/catalog/composition-types?includeInactive=1'),
   });
 
-  const [ingModal, setIngModal] = useState<'create' | { edit: IngredientRow } | null>(null);
+  const [extraModal, setExtraModal] = useState<'create' | { edit: ExtraRow } | null>(null);
   const [typeModal, setTypeModal] = useState<'create' | { edit: CompositionTypeRow } | null>(null);
   const [assignType, setAssignType] = useState<CompositionTypeRow | null>(null);
 
   const createIng = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
-      apiRequest('/api/v1/catalog/ingredients', { method: 'POST', body: JSON.stringify(body) }),
+      apiRequest('/api/v1/catalog/extras', { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['catalog'] });
-      setIngModal(null);
+      setExtraModal(null);
       onError(null);
     },
     onError: (e) => onError(e instanceof ApiError ? e.message : 'Error'),
@@ -79,17 +79,17 @@ export function CompositionAdminSection({
 
   const patchIng = useMutation({
     mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
-      apiRequest(`/api/v1/catalog/ingredients/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+      apiRequest(`/api/v1/catalog/extras/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['catalog'] });
-      setIngModal(null);
+      setExtraModal(null);
       onError(null);
     },
     onError: (e) => onError(e instanceof ApiError ? e.message : 'Error'),
   });
 
   const deleteIng = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/v1/catalog/ingredients/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => apiRequest(`/api/v1/catalog/extras/${id}`, { method: 'DELETE' }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['catalog'] }),
     onError: (e) => onError(e instanceof ApiError ? e.message : 'Error'),
   });
@@ -122,11 +122,11 @@ export function CompositionAdminSection({
     onError: (e) => onError(e instanceof ApiError ? e.message : 'Error'),
   });
 
-  const putTypeIngredients = useMutation({
-    mutationFn: ({ id, ingredientIds }: { id: string; ingredientIds: string[] }) =>
-      apiRequest(`/api/v1/catalog/composition-types/${id}/ingredients`, {
+  const putTypeExtras = useMutation({
+    mutationFn: ({ id, extraIds }: { id: string; extraIds: string[] }) =>
+      apiRequest(`/api/v1/catalog/composition-types/${id}/extras`, {
         method: 'PUT',
-        body: JSON.stringify({ ingredientIds }),
+        body: JSON.stringify({ extraIds }),
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['catalog'] });
@@ -136,60 +136,60 @@ export function CompositionAdminSection({
     onError: (e) => onError(e instanceof ApiError ? e.message : 'Error'),
   });
 
-  const ingredients = ingData?.ingredients ?? [];
+  const extrasList = extraData?.extras ?? [];
   const types = typeData?.compositionTypes ?? [];
 
-  if (activeTab === 'ingredients') {
+  if (activeTab === 'extras') {
     return (
       <>
         <section className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle className="text-base sm:text-lg">Ingredients</CardTitle>
+              <CardTitle className="text-base sm:text-lg">Extras</CardTitle>
               <p className="mt-1 text-sm text-zinc-600">
                 Items customers pick inside a composition step (e.g. sauces). Use <strong>Supp. price</strong> when the
                 step has &quot;Payment&quot; off; use <strong>Price</strong> when the step has &quot;Payment&quot; on.
               </p>
             </div>
-            <Button type="button" onClick={() => setIngModal('create')}>
-              Add ingredient
+            <Button type="button" onClick={() => setExtraModal('create')}>
+              Add extra
             </Button>
           </div>
 
-          {ingLoading ? (
+          {extraLoading ? (
             <div className="flex min-h-[200px] items-center justify-center rounded-xl border border-dashed border-zinc-200">
               <Spinner />
             </div>
-          ) : ingredients.length === 0 ? (
+          ) : extrasList.length === 0 ? (
             <Card className="border-dashed !py-12 text-center text-sm text-zinc-600">
-              No ingredients yet. Create one, then attach it to a composition type.
+              No extras yet. Create one, then attach it to a composition type.
             </Card>
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {ingredients.map((ing) => (
-                <li key={ing.id}>
+              {extrasList.map((row) => (
+                <li key={row.id}>
                   <Card className="!p-4">
                     <div className="flex gap-3">
                       <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-100">
-                        {ing.image ? (
-                          <img src={ing.image} alt="" className="h-full w-full object-cover" />
+                        {row.image ? (
+                          <img src={row.image} alt="" className="h-full w-full object-cover" />
                         ) : (
                           <div className="flex h-full items-center justify-center text-xs text-zinc-400">—</div>
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-zinc-900">{ing.name}</p>
+                        <p className="font-semibold text-zinc-900">{row.name}</p>
                         <p className="mt-1 text-xs text-zinc-600">
-                          Price {money.format(ing.priceCents / 100)} · Supp. {money.format(ing.suppPriceCents / 100)}
+                          Price {money.format(row.priceCents / 100)} · Supp. {money.format(row.suppPriceCents / 100)}
                         </p>
                         <div className="mt-2 flex flex-wrap gap-1">
-                          {!ing.visible ? <Badge className="bg-zinc-200 text-zinc-700">Hidden</Badge> : null}
-                          {ing.outOfStock ? <Badge className="bg-amber-100 text-amber-900">Out of stock</Badge> : null}
+                          {!row.visible ? <Badge className="bg-zinc-200 text-zinc-700">Hidden</Badge> : null}
+                          {row.outOfStock ? <Badge className="bg-amber-100 text-amber-900">Out of stock</Badge> : null}
                         </div>
                       </div>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2 border-t border-zinc-100 pt-3">
-                      <Button variant="secondary" type="button" className="text-sm" onClick={() => setIngModal({ edit: ing })}>
+                      <Button variant="secondary" type="button" className="text-sm" onClick={() => setExtraModal({ edit: row })}>
                         Edit
                       </Button>
                       <Button
@@ -197,8 +197,8 @@ export function CompositionAdminSection({
                         type="button"
                         className="text-sm text-red-700"
                         onClick={() => {
-                          if (confirm(`Delete ingredient “${ing.name}”? It will be removed from all composition types.`)) {
-                            deleteIng.mutate(ing.id);
+                          if (confirm(`Delete extra “${row.name}”? It will be removed from all composition types.`)) {
+                            deleteIng.mutate(row.id);
                           }
                         }}
                       >
@@ -212,20 +212,20 @@ export function CompositionAdminSection({
           )}
         </section>
 
-        {ingModal === 'create' && (
-          <IngredientFormModal
-            title="New ingredient"
-            onClose={() => setIngModal(null)}
+        {extraModal === 'create' && (
+          <ExtraFormModal
+            title="New extra"
+            onClose={() => setExtraModal(null)}
             onSave={(body) => createIng.mutate(body)}
             pending={createIng.isPending}
           />
         )}
-        {ingModal && typeof ingModal === 'object' && 'edit' in ingModal && (
-          <IngredientFormModal
-            title="Edit ingredient"
-            initial={ingModal.edit}
-            onClose={() => setIngModal(null)}
-            onSave={(body) => patchIng.mutate({ id: ingModal.edit.id, body })}
+        {extraModal && typeof extraModal === 'object' && 'edit' in extraModal && (
+          <ExtraFormModal
+            title="Edit extra"
+            initial={extraModal.edit}
+            onClose={() => setExtraModal(null)}
+            onSave={(body) => patchIng.mutate({ id: extraModal.edit.id, body })}
             pending={patchIng.isPending}
           />
         )}
@@ -240,8 +240,8 @@ export function CompositionAdminSection({
           <div>
             <CardTitle className="text-base sm:text-lg">Composition types</CardTitle>
             <p className="mt-1 text-sm text-zinc-600">
-              Steps shown on composed products (e.g. &quot;Sauce&quot; with min/max picks). Link ingredients to each
-              type, then order these types on each product.
+              Steps shown on composed products (e.g. &quot;Sauce&quot; with min/max picks). Link extras to each type,
+              then order these types on each product.
             </p>
           </div>
           <Button type="button" onClick={() => setTypeModal('create')}>
@@ -255,7 +255,7 @@ export function CompositionAdminSection({
           </div>
         ) : types.length === 0 ? (
           <Card className="border-dashed !py-12 text-center text-sm text-zinc-600">
-            No composition types yet. Create one, assign ingredients, then use it on a composed product.
+            No composition types yet. Create one, assign extras, then use it on a composed product.
           </Card>
         ) : (
           <ul className="space-y-3">
@@ -276,12 +276,12 @@ export function CompositionAdminSection({
                       </div>
                       {t.message ? <p className="mt-1 text-sm text-zinc-600">{t.message}</p> : null}
                       <p className="mt-2 text-xs text-zinc-500">
-                        Pick {t.min}–{t.max} · {t.ingredients.length} ingredient(s) · Mode {t.mode}
+                        Pick {t.min}–{t.max} · {t.extras.length} extra(s) · Mode {t.mode}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button variant="secondary" type="button" className="text-sm" onClick={() => setAssignType(t)}>
-                        Ingredients
+                        Extras
                       </Button>
                       <Button variant="secondary" type="button" className="text-sm" onClick={() => setTypeModal({ edit: t })}>
                         Edit
@@ -324,19 +324,19 @@ export function CompositionAdminSection({
       )}
 
       {assignType ? (
-        <AssignIngredientsModal
+        <AssignExtrasModal
           compositionType={assignType}
-          allIngredients={ingredients}
+          allExtras={extrasList}
           onClose={() => setAssignType(null)}
-          onSave={(ingredientIds) => putTypeIngredients.mutate({ id: assignType.id, ingredientIds })}
-          pending={putTypeIngredients.isPending}
+          onSave={(extraIds) => putTypeExtras.mutate({ id: assignType.id, extraIds })}
+          pending={putTypeExtras.isPending}
         />
       ) : null}
     </>
   );
 }
 
-function IngredientFormModal({
+function ExtraFormModal({
   title,
   initial,
   onClose,
@@ -344,7 +344,7 @@ function IngredientFormModal({
   pending,
 }: {
   title: string;
-  initial?: IngredientRow;
+  initial?: ExtraRow;
   onClose: () => void;
   onSave: (body: Record<string, unknown>) => void;
   pending: boolean;
@@ -485,7 +485,7 @@ function CompositionTypeFormModal({
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={payment} onChange={(e) => setPayment(e.target.checked)} className="rounded border-zinc-300" />
           <span>
-            Payment on (use ingredient <span className="font-semibold">Price</span> field)
+            Payment on (use extra <span className="font-semibold">Price</span> field)
           </span>
         </label>
         <label className="flex items-center gap-2 text-sm">
@@ -521,20 +521,20 @@ function CompositionTypeFormModal({
   );
 }
 
-function AssignIngredientsModal({
+function AssignExtrasModal({
   compositionType,
-  allIngredients,
+  allExtras,
   onClose,
   onSave,
   pending,
 }: {
   compositionType: CompositionTypeRow;
-  allIngredients: IngredientRow[];
+  allExtras: ExtraRow[];
   onClose: () => void;
   onSave: (ids: string[]) => void;
   pending: boolean;
 }) {
-  const [ordered, setOrdered] = useState<string[]>(() => [...compositionType.ingredientIds]);
+  const [ordered, setOrdered] = useState<string[]>(() => [...compositionType.extraIds]);
 
   const move = (idx: number, dir: -1 | 1) => {
     const j = idx + dir;
@@ -553,23 +553,23 @@ function AssignIngredientsModal({
   };
 
   return (
-    <Modal title={`Ingredients · ${compositionType.label}`} onClose={onClose}>
+    <Modal title={`Extras · ${compositionType.label}`} onClose={onClose}>
       <p className="mb-3 text-sm text-zinc-600">
-        Choose which ingredients belong to this step. Order matches the list below (top = first in app).
+        Choose which extras belong to this step. Order matches the list below (top = first in app).
       </p>
       <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-zinc-200 p-2">
-        {allIngredients.length === 0 ? (
-          <p className="text-sm text-zinc-500">Create ingredients first.</p>
+        {allExtras.length === 0 ? (
+          <p className="text-sm text-zinc-500">Create extras first.</p>
         ) : (
-          allIngredients.map((ing) => (
-            <label key={ing.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-zinc-50">
+          allExtras.map((row) => (
+            <label key={row.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-zinc-50">
               <input
                 type="checkbox"
-                checked={ordered.includes(ing.id)}
-                onChange={() => toggle(ing.id)}
+                checked={ordered.includes(row.id)}
+                onChange={() => toggle(row.id)}
                 className="rounded border-zinc-300"
               />
-              <span className="text-sm">{ing.name}</span>
+              <span className="text-sm">{row.name}</span>
             </label>
           ))
         )}
@@ -579,10 +579,10 @@ function AssignIngredientsModal({
           <Label>Order on this step</Label>
           <ul className="mt-2 space-y-1 rounded-lg border border-zinc-200 bg-zinc-50/50 p-2">
             {ordered.map((id, idx) => {
-              const ing = allIngredients.find((i) => i.id === id);
+              const row = allExtras.find((i) => i.id === id);
               return (
                 <li key={id} className="flex items-center justify-between gap-2 rounded-md bg-white px-2 py-1.5 text-sm shadow-sm">
-                  <span>{ing?.name ?? id}</span>
+                  <span>{row?.name ?? id}</span>
                   <span className="flex gap-1">
                     <Button type="button" variant="ghost" className="px-2 py-0.5 text-xs" onClick={() => move(idx, -1)}>
                       ↑

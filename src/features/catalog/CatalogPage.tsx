@@ -44,7 +44,7 @@ const money = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maxim
 
 export function CatalogPage() {
   const qc = useQueryClient();
-  const [tab, setTab] = useState<'categories' | 'products' | 'ingredients' | 'compositionTypes'>('categories');
+  const [tab, setTab] = useState<'categories' | 'products' | 'extras' | 'compositionTypes'>('categories');
   const [catFilter, setCatFilter] = useState<string>('');
 
   const { data: catData, isLoading: catLoading } = useQuery({
@@ -141,7 +141,7 @@ export function CatalogPage() {
             [
               ['categories', 'Categories'],
               ['products', 'Products'],
-              ['ingredients', 'Ingredients'],
+              ['extras', 'Extras'],
               ['compositionTypes', 'Composition'],
             ] as const
           ).map(([id, label]) => (
@@ -400,7 +400,7 @@ export function CatalogPage() {
         </section>
       )}
 
-      {tab === 'ingredients' && <CompositionAdminSection activeTab="ingredients" onError={setErr} />}
+      {tab === 'extras' && <CompositionAdminSection activeTab="extras" onError={setErr} />}
 
       {tab === 'compositionTypes' && <CompositionAdminSection activeTab="types" onError={setErr} />}
 
@@ -658,10 +658,10 @@ function ProductFormModal({
             }}
           >
             <option value="SIMPLE">Simple (add to cart directly; optional modifiers)</option>
-            <option value="COMPOSED">Composed (customer picks ingredients per step)</option>
+            <option value="COMPOSED">Composed (customer picks extras per step)</option>
           </select>
           <p className="mt-1 text-xs text-zinc-500">
-            Composed products need composition types defined under the Composition tab, with ingredients on each type.
+            Composed products need composition types defined under the Composition tab, with extras on each type.
           </p>
         </div>
 

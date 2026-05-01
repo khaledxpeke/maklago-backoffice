@@ -69,14 +69,18 @@ function formatComposition(raw: unknown): string | null {
     const step = s as {
       compositionTypeLabel?: string;
       compositionTypeName?: string;
+      extras?: { name?: string }[];
       ingredients?: { name?: string }[];
     };
     const label = step.compositionTypeLabel ?? step.compositionTypeName;
-    const ingNames = Array.isArray(step.ingredients)
-      ? step.ingredients.map((i) => (i && typeof i.name === 'string' ? i.name : null)).filter(Boolean)
-      : [];
-    if (label && ingNames.length) parts.push(`${label}: ${ingNames.join(', ')}`);
-    else if (ingNames.length) parts.push(ingNames.join(', '));
+    const picked = Array.isArray(step.extras)
+      ? step.extras
+      : Array.isArray(step.ingredients)
+        ? step.ingredients
+        : [];
+    const names = picked.map((i) => (i && typeof i.name === 'string' ? i.name : null)).filter(Boolean);
+    if (label && names.length) parts.push(`${label}: ${names.join(', ')}`);
+    else if (names.length) parts.push(names.join(', '));
   }
   return parts.length ? parts.join(' · ') : null;
 }

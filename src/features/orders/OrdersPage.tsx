@@ -9,68 +9,55 @@ import { Modal } from '@/shared/ui/Modal';
 import { Spinner } from '@/shared/ui/Spinner';
 import { Badge } from '@/shared/ui/Badge';
 
-type OrderStatus = 'draft' | 'active' | 'completed' | 'canceled';
+type OrderStatus = 'waiting' | 'confirmed' | 'preparing' | 'completed' | 'canceled';
 
-type OrderFulfillment = 'dine_in' | 'takeaway';
-
-type OrderProductSummary = {
-  _id: string;
-  id: string;
+/** Line item from enriched `GET /api/v1/orders`. */
+type OrderProductRow = {
   categoryId: string;
-  categoryName: string;
-  categories?: string[];
-  name: string;
-  description?: string | null;
-  kind: string;
-  priceCents?: number;
-  price?: number;
-  taxRateBps?: number | null;
-  tva?: number | null;
-  image?: string | null;
-};
-
-type OrderLine = {
-  _id?: string;
   id: string;
-  quantity: number;
-  unitPriceCents: number;
-  unitPrice?: number;
-  lineTotalCents: number;
-  lineTotal?: number;
-  taxCents: number;
-  tax?: number;
-  note: string | null;
-  modifiersSnapshot: unknown;
-  compositionSnapshot: unknown;
-  product: OrderProductSummary;
+  name: string;
+  description?: string;
+  kind: string;
+  categoryName: string;
+  image?: string | null;
+  count: number;
+  price: number;
+  extras: { id: string; count: number; price: number; name?: string }[];
+  compositionSnapshot?: unknown;
 };
 
 type OrderListItem = {
-  _id?: string;
   id: string;
+  reference?: string;
+  commandNumber?: number;
+  commandDate?: string;
   status: OrderStatus;
-  fulfillment: OrderFulfillment;
-  subtotalCents: number;
-  subtotal?: number;
-  taxCents: number;
-  tax?: number;
-  totalCents: number;
-  total?: number;
+  orderType: 'dine_in' | 'takeaway';
+  /** Same integer unit as POST body / API `subtotal`. */
+  subtotal: number;
+  tva: number;
+  total: number;
+  discount?: number;
+  discountPrice?: number;
+  paymentMethod?: string;
+  note?: string | null;
+  customerName?: string | null;
   createdAt: string;
-  table: {
-    _id?: string;
+  updatedAt?: string;
+  tableId?: string | null;
+  staffId?: string | null;
+  table?: {
     id: string;
     name: string;
     tableNumber: number;
     status: string;
     zone: string | null;
   } | null;
-  lines: OrderLine[];
+  products: OrderProductRow[];
 };
 
 type OrderDetail = OrderListItem & {
   staff: {
-    _id?: string;
     id: string;
     fullName: string;
     email: string;
@@ -82,62 +69,29 @@ function formatMoney(cents: number) {
   return (cents / 100).toLocaleString(undefined, { style: 'currency', currency: 'TND' });
 }
 
-function formatModifiers(raw: unknown): string | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const o = raw as Record<string, unknown>;
-  const ids = o.selectedIds;
-  const defs = o.defs;
-  if (!Array.isArray(ids) || !Array.isArray(defs) || ids.length === 0) return null;
-  const names: string[] = [];
-  for (const id of ids) {
-    if (typeof id !== 'string') continue;
-    const d = defs.find((x) => typeof x === 'object' && x !== null && (x as { id?: string }).id === id) as
-      | { name?: string }
-      | undefined;
-    if (d?.name) names.push(d.name);
-  }
-  return names.length ? names.join(', ') : null;
-}
-
-function formatComposition(raw: unknown): string | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const steps = (raw as { steps?: unknown }).steps;
-  if (!Array.isArray(steps) || steps.length === 0) return null;
-  const parts: string[] = [];
-  for (const s of steps) {
-    if (typeof s !== 'object' || s === null) continue;
-    const step = s as {
-      compositionTypeLabel?: string;
-      compositionTypeName?: string;
-      extras?: { name?: string }[];
-      ingredients?: { name?: string }[];
-    };
-    const label = step.compositionTypeLabel ?? step.compositionTypeName;
-    const picked = Array.isArray(step.extras)
-      ? step.extras
-      : Array.isArray(step.ingredients)
-        ? step.ingredients
-        : [];
-    const names = picked.map((i) => (i && typeof i.name === 'string' ? i.name : null)).filter(Boolean);
-    if (label && names.length) parts.push(`${label}: ${names.join(', ')}`);
-    else if (names.length) parts.push(names.join(', '));
-  }
-  return parts.length ? parts.join(' · ') : null;
+function formatExtrasSummary(extras: OrderProductRow['extras']): string | null {
+  if (!extras?.length) return null;
+  const parts = extras.map((e) => `${e.count}× ${e.name ?? e.id} (${formatMoney(e.price)})`);
+  return parts.join(', ');
 }
 
 function statusBadgeClass(status: OrderStatus): string {
   switch (status) {
     case 'completed':
       return 'bg-emerald-100 text-emerald-800';
-    case 'active':
-    case 'draft':
-      return 'bg-amber-100 text-amber-900';
     case 'canceled':
       return 'bg-red-100 text-red-800';
+    case 'preparing':
+      return 'bg-orange-100 text-orange-900';
+    case 'confirmed':
+      return 'bg-sky-100 text-sky-900';
+    case 'waiting':
     default:
-      return '';
+      return 'bg-amber-100 text-amber-900';
   }
 }
+
+const OPEN_STATUSES: OrderStatus[] = ['waiting', 'confirmed', 'preparing'];
 
 export function OrdersPage() {
   const qc = useQueryClient();
@@ -154,7 +108,7 @@ export function OrdersPage() {
   });
 
   const detailQ = useQuery({
-    queryKey: ['orders', detailId],
+    queryKey: ['orders', 'detail', detailId],
     queryFn: () => apiRequest<{ order: OrderDetail }>(`/api/v1/orders/${detailId}`),
     enabled: Boolean(detailId),
   });
@@ -193,8 +147,9 @@ export function OrdersPage() {
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="">All</option>
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
+              <option value="waiting">Waiting</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="preparing">Preparing</option>
               <option value="completed">Completed</option>
               <option value="canceled">Canceled</option>
             </select>
@@ -217,10 +172,11 @@ export function OrdersPage() {
               <thead className="border-b border-zinc-100 bg-zinc-50/80 text-xs font-medium uppercase text-zinc-500">
                 <tr>
                   <th className="px-4 py-3">When</th>
+                  <th className="px-4 py-3">Cmd</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Service</th>
                   <th className="px-4 py-3">Table</th>
-                  <th className="px-4 py-3">Lines</th>
+                  <th className="px-4 py-3">Products</th>
                   <th className="px-4 py-3 text-right">Total</th>
                   <th className="px-4 py-3" />
                 </tr>
@@ -231,11 +187,14 @@ export function OrdersPage() {
                     <td className="px-4 py-3 tabular-nums text-zinc-600">
                       {new Date(o.createdAt).toLocaleString()}
                     </td>
+                    <td className="px-4 py-3 tabular-nums text-zinc-700">
+                      {o.commandNumber != null ? `#${o.commandNumber}` : '—'}
+                    </td>
                     <td className="px-4 py-3">
                       <Badge className={statusBadgeClass(o.status)}>{o.status}</Badge>
                     </td>
                     <td className="px-4 py-3 text-zinc-700">
-                      {o.fulfillment === 'takeaway' ? (
+                      {o.orderType === 'takeaway' ? (
                         <span className="text-zinc-600">Takeaway</span>
                       ) : (
                         <span className="font-medium text-zinc-800">Dine-in</span>
@@ -255,10 +214,10 @@ export function OrdersPage() {
                       )}
                     </td>
                     <td className="max-w-[220px] truncate px-4 py-3 text-zinc-600">
-                      {o.lines.map((l) => `${l.quantity}× ${l.product.name}`).join(', ') || '—'}
+                      {o.products?.map((p) => `${p.count}× ${p.name}`).join(', ') || '—'}
                     </td>
                     <td className="px-4 py-3 text-right font-medium tabular-nums text-zinc-900">
-                      {formatMoney(o.totalCents)}
+                      {formatMoney(o.total)}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Button type="button" variant="secondary" className="text-xs" onClick={() => setDetailId(o.id)}>
@@ -278,7 +237,7 @@ export function OrdersPage() {
 
       {detailId && detail && (
         <Modal
-          title={`Order ${detail.id.slice(0, 8)}…`}
+          title={`Order ${detail.commandNumber != null ? `#${detail.commandNumber}` : `${detail.id.slice(0, 8)}…`}`}
           onClose={() => setDetailId(null)}
           className="max-w-lg"
         >
@@ -286,10 +245,17 @@ export function OrdersPage() {
             <div className="flex flex-wrap items-center gap-2">
               <Badge className={statusBadgeClass(detail.status)}>{detail.status}</Badge>
               <Badge className="bg-zinc-100 text-zinc-700">
-                {detail.fulfillment === 'takeaway' ? 'Takeaway' : 'Dine-in'}
+                {detail.orderType === 'takeaway' ? 'Takeaway' : 'Dine-in'}
               </Badge>
               <span className="text-zinc-500">{new Date(detail.createdAt).toLocaleString()}</span>
             </div>
+
+            {detail.reference ? (
+              <div className="text-xs text-zinc-500">
+                Reference <span className="font-mono text-zinc-700">{detail.reference}</span>
+              </div>
+            ) : null}
+
             {detail.table && (
               <div>
                 <div className="text-xs font-medium uppercase text-zinc-500">Table</div>
@@ -310,30 +276,40 @@ export function OrdersPage() {
               </div>
             )}
 
-            <CardTitle className="text-base">Lines</CardTitle>
+            {(detail.note || detail.customerName) && (
+              <div className="rounded-lg border border-zinc-100 bg-zinc-50/80 px-3 py-2">
+                {detail.customerName ? (
+                  <div>
+                    <span className="text-xs font-medium uppercase text-zinc-500">Customer</span>
+                    <div className="text-zinc-900">{detail.customerName}</div>
+                  </div>
+                ) : null}
+                {detail.note ? (
+                  <div className={detail.customerName ? 'mt-2' : ''}>
+                    <span className="text-xs font-medium uppercase text-zinc-500">Order note</span>
+                    <div className="text-zinc-800">{detail.note}</div>
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            <CardTitle className="text-base">Products</CardTitle>
             <ul className="space-y-3 rounded-lg border border-zinc-100 bg-zinc-50/50 p-3">
-              {detail.lines.map((line) => {
-                const mods = formatModifiers(line.modifiersSnapshot);
-                const comp = formatComposition(line.compositionSnapshot);
-                const meta = [
-                  line.product.categoryName,
-                  line.product.kind === 'composed' ? 'Composed' : null,
-                ].filter(Boolean);
+              {(detail.products ?? []).map((row, idx) => {
+                const meta = [row.categoryName, row.kind === 'composed' ? 'Composed' : null].filter(Boolean);
+                const extrasLine = formatExtrasSummary(row.extras);
                 return (
-                  <li key={line.id} className="border-b border-zinc-100 pb-3 last:border-0 last:pb-0">
+                  <li key={`${detail.id}-${idx}-${row.id}`} className="border-b border-zinc-100 pb-3 last:border-0 last:pb-0">
                     <div className="font-medium text-zinc-900">
-                      {line.quantity}× {line.product.name}
+                      {row.count}× {row.name}
                     </div>
                     {meta.length > 0 ? (
                       <div className="mt-0.5 text-xs text-zinc-500">{meta.join(' · ')}</div>
                     ) : null}
-                    <div className="mt-0.5 text-xs text-zinc-500">
-                      {formatMoney(line.unitPriceCents)} unit · {formatMoney(line.lineTotalCents)} line · tax{' '}
-                      {formatMoney(line.taxCents)}
-                    </div>
-                    {mods && <div className="mt-1 text-zinc-700">Modifiers: {mods}</div>}
-                    {comp && <div className="mt-1 text-zinc-700">Composition: {comp}</div>}
-                    {line.note && <div className="mt-1 italic text-zinc-600">Note: {line.note}</div>}
+                    <div className="mt-0.5 text-xs text-zinc-500">{formatMoney(row.price)} unit</div>
+                    {extrasLine ? (
+                      <div className="mt-1 text-xs text-zinc-700">Extras: {extrasLine}</div>
+                    ) : null}
                   </li>
                 );
               })}
@@ -341,19 +317,30 @@ export function OrdersPage() {
 
             <div className="flex justify-between border-t border-zinc-100 pt-3 text-zinc-800">
               <span>Subtotal</span>
-              <span className="tabular-nums">{formatMoney(detail.subtotalCents)}</span>
+              <span className="tabular-nums">{formatMoney(detail.subtotal)}</span>
             </div>
             <div className="flex justify-between text-zinc-800">
-              <span>Tax</span>
-              <span className="tabular-nums">{formatMoney(detail.taxCents)}</span>
+              <span>TVA</span>
+              <span className="tabular-nums">{formatMoney(detail.tva)}</span>
             </div>
+            {(detail.discount ?? 0) > 0 && detail.discountPrice != null ? (
+              <div className="flex justify-between text-zinc-800">
+                <span>Discount ({detail.discount}%)</span>
+                <span className="tabular-nums text-emerald-700">−{formatMoney(detail.discountPrice)}</span>
+              </div>
+            ) : null}
             <div className="flex justify-between text-base font-semibold text-zinc-900">
               <span>Total</span>
-              <span className="tabular-nums">{formatMoney(detail.totalCents)}</span>
+              <span className="tabular-nums">{formatMoney(detail.total)}</span>
             </div>
+            {detail.paymentMethod ? (
+              <div className="text-xs text-zinc-500">
+                Payment: <span className="font-medium text-zinc-700">{detail.paymentMethod}</span>
+              </div>
+            ) : null}
 
             <div className="flex flex-wrap gap-2 pt-2">
-              {detail.status === 'active' || detail.status === 'draft' ? (
+              {OPEN_STATUSES.includes(detail.status) ? (
                 <Button
                   type="button"
                   disabled={patchStatus.isPending}
